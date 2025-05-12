@@ -1,0 +1,85 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: ${{ secrets.HARBOR_REGISTRY }}    # e.g. my.harbor.company.com
+  PROJECT: my-project
+  IMAGE: react-app
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          version: latest
+
+      - name: Install dependencies & build
+        run: |
+          bun install
+          bun build
+
+      - name: Log in to Harbor
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.HARBOR_USER }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.PROJECT }}/${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.PROJECT }}/${{ env.IMAGE }}:latest
+
+      - name: Set image tag output
+        run: echo "TAG=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  deploy-to-swarm:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SSH client
+        run: sudo apt-get update && sudo apt-get install -y ssh
+
+      - name: Prepare SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Deploy to Docker Swarm
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          PROJECT: ${{ env.PROJECT }}
+          IMAGE: ${{ env.IMAGE }}
+          TAG: ${{ needs.build-and-push.outputs.TAG }}
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<EOF
+            # Log into Harbor on the Swarm manager (if needed)
+            sudo docker login $REGISTRY \
+              -u ${{ secrets.HARBOR_USER }} \
+              -p ${{ secrets.HARBOR_PASSWORD }}
+            # Deploy or update the stack
+            TAG="$TAG" \
+              REGISTRY="$REGISTRY" \
+              PROJECT="$PROJECT" \
+              IMAGE="$IMAGE" \
+              sudo docker stack deploy \
+                --with-registry-auth \
+                -c /path/to/docker-stack.yml my-stack
+          EOF

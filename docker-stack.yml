@@ -1,0 +1,15 @@
+# docker-stack.yml
+version: "3.8"
+
+services:
+  frontend:
+    image: ${{ secrets.HARBOR_REGISTRY }}/test/react-app:${TAG}
+    ports:
+      - "80:80"
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure

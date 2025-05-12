@@ -12,5 +12,5 @@ FROM nginx:stable-alpine
 COPY --from=builder /usr/src/app/dist /usr/share/nginx/html
 # Optional: copy a custom nginx.conf if you need rewrites, headers, etc.
 # COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+EXPOSE 9005:80
 CMD ["nginx", "-g", "daemon off;"]

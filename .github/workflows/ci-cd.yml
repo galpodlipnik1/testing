@@ -14,6 +14,8 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      TAG: ${{ steps.set_tag.outputs.TAG }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,12 +48,16 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.PROJECT }}/${{ env.IMAGE }}:latest
 
       - name: Set image tag output
+        id: set_tag
         run: echo "TAG=${{ github.sha }}" >> $GITHUB_OUTPUT
 
   deploy-to-swarm:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Install SSH client
         run: sudo apt-get update && sudo apt-get install -y ssh
 
@@ -66,7 +72,6 @@ jobs:
           scp -o StrictHostKeyChecking=no \
             ./docker-stack.yml \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/docker-stack.yml
-
 
       - name: Deploy to Docker Swarm
         env:

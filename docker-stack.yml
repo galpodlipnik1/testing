@@ -3,7 +3,7 @@ version: "3.8"
 
 services:
   frontend:
-    image: ${{ secrets.HARBOR_REGISTRY }}/test/react-app:${TAG}
+    image: ${REGISTRY}/${PROJECT}/${IMAGE}:${TAG}
     ports:
       - "80:80"
     deploy:

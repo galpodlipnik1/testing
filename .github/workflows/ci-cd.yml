@@ -64,7 +64,7 @@ jobs:
       - name: Copy stack file to Swarm manager
         run: |
           scp -o StrictHostKeyChecking=no \
-            docker-stack.yml \
+            ./docker-stack.yml \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/docker-stack.yml
 
 

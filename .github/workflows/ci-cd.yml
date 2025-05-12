@@ -67,8 +67,12 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      - name: Copy stack file to Swarm manager
+      - name: Create directory and copy stack file to Swarm manager
         run: |
+          # First ensure the directory exists
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p /home/${{ secrets.SSH_USER }}"
+          
+          # Then copy the file
           scp -o StrictHostKeyChecking=no \
             ./docker-stack.yml \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/docker-stack.yml
@@ -93,13 +97,10 @@ jobs:
               IMAGE="$IMAGE" \
               sudo docker stack deploy \
                 --with-registry-auth \
-                -c /home/$USER/docker-stack.yml my-stack
+                -c /home/${{ secrets.SSH_USER }}/docker-stack.yml my-stack
           EOF
 
       - name: Clean up
         run: |
           ssh -o StrictHostKeyChecking=no \
-              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<EOF
-            # Remove the stack file from the Swarm manager
-            rm /home/${{ secrets.SSH_USER }}/docker-stack.yml
-          EOF
+              ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -f /home/${{ secrets.SSH_USER }}/docker-stack.yml"

@@ -67,6 +67,13 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
+      - name: Modify docker-stack.yml with proper environment variables
+        run: |
+          sed -i "s|\${REGISTRY}|${{ env.REGISTRY }}|g" docker-stack.yml
+          sed -i "s|\${PROJECT}|${{ env.PROJECT }}|g" docker-stack.yml
+          sed -i "s|\${IMAGE}|${{ env.IMAGE }}|g" docker-stack.yml
+          sed -i "s|\${TAG}|${{ needs.build-and-push.outputs.TAG }}|g" docker-stack.yml
+
       - name: Create directory and copy stack file to Swarm manager
         run: |
           # First ensure the directory exists
@@ -80,24 +87,18 @@ jobs:
       - name: Deploy to Docker Swarm
         env:
           REGISTRY: ${{ env.REGISTRY }}
-          PROJECT: ${{ env.PROJECT }}
-          IMAGE: ${{ env.IMAGE }}
           TAG: ${{ needs.build-and-push.outputs.TAG }}
         run: |
           ssh -o StrictHostKeyChecking=no \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} <<EOF
-            # Log into Harbor on the Swarm manager (if needed)
-            sudo docker login $REGISTRY \
-              -u ${{ secrets.HARBOR_USER }} \
-              -p ${{ secrets.HARBOR_PASSWORD }}
-            # Deploy or update the stack
-            TAG="$TAG" \
-              REGISTRY="$REGISTRY" \
-              PROJECT="$PROJECT" \
-              IMAGE="$IMAGE" \
-              sudo docker stack deploy \
-                --with-registry-auth \
-                -c /home/${{ secrets.SSH_USER }}/docker-stack.yml my-stack
+            # Log into Harbor securely using password-stdin
+            echo "${{ secrets.HARBOR_PASSWORD }}" | sudo docker login ${{ env.REGISTRY }} \
+              -u ${{ secrets.HARBOR_USER }} --password-stdin
+              
+            # Deploy or update the stack with simplified command
+            sudo docker stack deploy \
+              --with-registry-auth \
+              -c /home/${{ secrets.SSH_USER }}/docker-stack.yml my-stack
           EOF
 
       - name: Clean up

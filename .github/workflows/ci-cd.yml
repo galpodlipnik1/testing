@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ${{ secrets.HARBOR_REGISTRY }}    # e.g. my.harbor.company.com
-  PROJECT: my-project
+  PROJECT: test
   IMAGE: react-app
 
 jobs:

@@ -5,7 +5,7 @@ services:
   frontend:
     image: ${REGISTRY}/${PROJECT}/${IMAGE}:${TAG}
     ports:
-      - "80:80"
+      - "9005:80"
     deploy:
       replicas: 3
       update_config:
